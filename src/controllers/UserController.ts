@@ -5,6 +5,8 @@ import { User } from '../entities/User';
 import bcrypt from 'bcrypt';
 import nodemailer from 'nodemailer';
 import { v4 as uuidv4 } from 'uuid';
+import { Followers } from '../entities/Followers';
+import { Posts } from '../entities/Post';
 
 export const register = async (req: Request, res: Response) => {
   try {
@@ -89,10 +91,6 @@ export const login = async (req: Request, res: Response) => {
   return res.status(200).json({ message: 'Login successful' });
 };
 
-// src/controllers/UserController.ts
-
-// ... (existing imports)
-
 export const verifyEmail = async (req: Request, res: Response) => {
   try {
     const { token } = req.params;
@@ -153,3 +151,116 @@ export const updateUser = async (req: Request, res: Response) => {
     res.status(600).json({ error: 'unable to update user' });
   }
 };
+
+export const followSomeone = async (req: Request, res: Response) => {
+  try{
+    const { followeeEmail, followerEmail } = req.body;
+    const userRepository = getRepository(User);
+    let email = followeeEmail;
+    const followee = await userRepository.findOne({ where: { email } });
+    if (!followee) {
+      return res.status(401).json({ message: 'Followee not found' });
+    }
+    email = followerEmail;
+    const follower = await userRepository.findOne({ where: { email } });
+    if (!follower) {
+      return res.status(401).json({ message: 'Follower not found' });
+    }
+
+    const followerRepository = getRepository(Followers);
+    const entry = await followerRepository.create({
+      followeeUser: followee,
+      followerUser : follower
+    })
+    await followerRepository.save(entry);
+    return res.status(300).json({message : 'Started to follow'});
+
+  }catch(error)
+  {
+    return res.status(300).json({message : 'Unable to follow'});
+  }
+}
+
+export const getFeed = async (req: Request, res: Response) => {
+  try
+  {
+    const {email} = req.body;
+    const userRepository = getRepository(User);
+    const followersRepository = getRepository(Followers);
+    const postRepository = getRepository(Posts);
+
+    const current_user = await userRepository.findOne({where : {email}});
+    if(!current_user){
+      return res.status(200).json("User not found");
+    }
+
+    let feed : Posts[] = [];
+    let user_posts = await postRepository.find({where: {user: {userId: current_user.userId}}});
+    feed.push(...user_posts);
+
+    let user_followees : Followers[] = [];
+    let followees = await followersRepository.find({where : {followerUser : {userId: current_user.userId}}});
+    user_followees.push(...followees);
+
+    // return res.status(200).json({user_followees});
+
+    let fetchFromFollowers: Followers[] = [];
+    for (let obj of user_followees) {
+      let entities = await followersRepository.find({
+        where: { followerId: obj.followerId },
+        relations: ['followeeUser'],
+      });
+
+      if (entities) {
+        fetchFromFollowers = fetchFromFollowers.concat(entities);
+      }
+    }
+
+    for(let obj of fetchFromFollowers){
+      const fUserId = obj.followeeUser.userId;
+      let fPosts = await postRepository.find({where: {user: {userId: fUserId}}});
+      feed.push(...fPosts);
+    }
+    return res.status(200).json({feed});
+
+    // console.log(`.............. ${followees}`);
+    // return res.status(100).json(user_posts);
+
+  }
+  catch(error){
+    return res.status(300).json({error: "internal server error"});
+  }
+}
+
+export const unfollowSomeone = async (req: Request, res: Response) => {
+  try{
+    const { followeeEmail, followerEmail } = req.body;
+    const userRepository = getRepository(User);
+    let email = followeeEmail;
+    const followee = await userRepository.findOne({ where: { email } });
+    if (!followee) {
+      return res.status(401).json({ message: 'Followee not found' });
+    }
+
+    email = followerEmail;
+    const follower = await userRepository.findOne({ where: { email } });
+    if (!follower) {
+      return res.status(401).json({ message: 'Follower not found' });
+    }
+    
+    const followerRepository = getRepository(Followers);
+    const ifFollowing = await followerRepository.findOne({where: {followeeUser : {email : followeeEmail}, 
+      followerUser : {email: followerEmail}
+    }});
+
+    if(ifFollowing){
+      await followerRepository.delete({ followerId: ifFollowing.followerId});
+      return res.status(200).json({message: "Unfollowing"});
+    }
+    return res.status(300).json({message : `To unfollow, ${followerEmail} should follow ${followeeEmail}`});
+
+  }catch(error)
+  {
+    return res.status(300).json({message : 'Unable to unfollow'});
+  }
+}

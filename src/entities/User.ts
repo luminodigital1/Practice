@@ -1,7 +1,10 @@
 // src/entities/YourEntity.ts
 
-import { Entity, PrimaryGeneratedColumn,Unique, Column } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn,OneToMany, Column, ManyToMany } from 'typeorm';
 import bcrypt from 'bcrypt';
+import { Likes } from './Likes';
+import { Posts } from './Post';
+import { Followers } from './Followers';
 
 @Entity()
 export class User {
@@ -25,6 +28,20 @@ export class User {
 
   @Column()
   verificationToken: string;
+
+  @OneToMany(() => Posts, posts => posts.postId)
+  posts!: Posts[]
+
+  @OneToMany(() => Likes, likes => likes.user)
+  likes!: Likes[];
+
+  // One user can have multiple followers
+  @OneToMany(() => Followers, follower => follower)
+  follower!: Followers[];
+
+  // One user can be followed by multiple users
+  @OneToMany(() => Followers, follower => follower.followeeUser)
+  followees!: Followers[];
 
   constructor() {
     this.userId = 0;
