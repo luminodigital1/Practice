@@ -4,6 +4,10 @@ import { User } from '../entities/User';
 import { Posts } from '../entities/Post';
 import { Likes } from '../entities/Likes';
 import { Comments } from '../entities/Comments';
+import { getUserInfoFromToken, verifyToken } from './VerifyToken';
+import { decode } from 'punycode';
+import NodeCache from 'node-cache';
+import { tokenCache } from './UserController';
 
 export const doPost = async (req: Request, res: Response) => {
     try {
@@ -103,13 +107,31 @@ export const deletePost = async (req: Request, res: Response) => {
     try
     {    
         const {post_name, post_description} = req.body;
-        const postRepository = getRepository(Posts);
-        let post = await postRepository.find({where: {name: post_name, description: post_description}});
+        const token = req.headers.authorization?.split(' ')[1];
+        if (!token) {
+            return res.status(401).json({ message: 'Unauthorized: Token not found' });
+        }
+        const userInfo = getUserInfoFromToken(token);
 
-        if(!post[0])
-            {
-                return res.status(200).json({message: "Post not found"});
-            }
+        if (!userInfo) {
+            return res.status(401).json({ message: 'Unauthorized: Invalid token or userId not found in cache' });
+        }
+
+        const postRepository = getRepository(Posts);
+        let post = await postRepository.find({where: {name: post_name, description: post_description},
+            relations: ['user']});
+        
+        
+
+        if(!post[0].postId)
+        {
+            return res.status(200).json({message: "Post not found"});
+        }
+        
+        // console.log(`...............${userInfo.userId} .......... ${post[0].user.userId}.`)
+        if (userInfo.userId !== post[0].user.userId) {
+            return res.status(403).json({ message: 'Forbidden: Only the owner can delete the post' });
+        }
         await postRepository.delete({name: post_name, description: post_description});
         return res.status(200).json({message: "successfully deleted"});
     }

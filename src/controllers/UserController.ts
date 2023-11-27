@@ -1,12 +1,14 @@
 import { Request, Response } from 'express';
 import { getRepository } from 'typeorm';
 import { User } from '../entities/User';
+import jwt from 'jsonwebtoken';
 
 import bcrypt from 'bcrypt';
 import nodemailer from 'nodemailer';
 import { v4 as uuidv4 } from 'uuid';
 import { Followers } from '../entities/Followers';
 import { Posts } from '../entities/Post';
+import { tokenCache } from './VerifyToken';
 
 export const register = async (req: Request, res: Response) => {
   try {
@@ -70,6 +72,7 @@ export const register = async (req: Request, res: Response) => {
   }
 };
 
+
 export const login = async (req: Request, res: Response) => {
   const { email, password } = req.body;
 
@@ -86,9 +89,10 @@ export const login = async (req: Request, res: Response) => {
     return res.status(401).json({ message: 'Invalid email or password' });
   }
 
-  // Here you can generate and send a JWT token for authentication
-  // For simplicity, let's send a success message for now
-  return res.status(200).json({ message: 'Login successful' });
+  const token = jwt.sign({ userId: user.userId, email: user.email }, 
+    '@SMA', { expiresIn: '1h' });
+    tokenCache.set(user.userId.toString(), token);
+  return res.status(200).json({ message: 'Login successful' , token});
 };
 
 export const verifyEmail = async (req: Request, res: Response) => {
@@ -140,7 +144,10 @@ export const updateUser = async (req: Request, res: Response) => {
       return res.status(401).json({ message: 'User not found' });
     }
 
-    user.password = password;
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+    user.password = hashedPassword;
     user.firstName = firstName;
     user.lastName= lastName;
     
@@ -264,3 +271,5 @@ export const unfollowSomeone = async (req: Request, res: Response) => {
     return res.status(300).json({message : 'Unable to unfollow'});
   }
 }
+export { tokenCache };
+

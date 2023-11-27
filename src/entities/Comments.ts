@@ -11,12 +11,12 @@ export class Comments {
     commentsId!: number;
 
   // Many-to-one relationship with User
-  @ManyToOne(() => User, user => user)
+  @ManyToOne(() => User, user => user, {onDelete : 'CASCADE'})
   @JoinColumn({ name: 'CommentByUser' })
     user!: User;
 
   // Many-to-one relationship with Post
-  @ManyToOne(() => Posts, post => post.likes)
+  @ManyToOne(() => Posts, post => post.likes, {onDelete : 'CASCADE'})
   @JoinColumn({ name: 'PostId' })
     post!: Posts;
 
