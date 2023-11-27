@@ -5,13 +5,21 @@ import { Posts } from '../entities/Post';
 import { Likes } from '../entities/Likes';
 import { Comments } from '../entities/Comments';
 import { getUserInfoFromToken, verifyToken } from './VerifyToken';
-import { decode } from 'punycode';
-import NodeCache from 'node-cache';
-import { tokenCache } from './UserController';
 
 export const doPost = async (req: Request, res: Response) => {
     try {
-        const { email, name, description } = req.body;
+        const { name, description } = req.body;
+        const token = req.headers.authorization?.split(' ')[1];
+        if (!token) {
+            return res.status(401).json({ message: 'Unauthorized: Token not found' });
+        }
+        const userInfo = getUserInfoFromToken(token);
+
+        if (!userInfo) {
+            return res.status(401).json({ message: 'Unauthorized: Invalid token or userId not found in cache' });
+        }
+
+        const email = userInfo.email;
         const userRepository = getRepository(User);
         const postRepository = getRepository(Posts);
         const user = await userRepository.findOne({ where: { email } });
@@ -36,9 +44,19 @@ export const doPost = async (req: Request, res: Response) => {
   
   export const likePost = async (req: Request, res: Response) => {
     try {
-        const { postId, email } = req.body;
+        const { postId } = req.body;
+        const token = req.headers.authorization?.split(' ')[1];
+        if (!token) {
+            return res.status(401).json({ message: 'Unauthorized: Token not found' });
+        }
+        const userInfo = getUserInfoFromToken(token);
+
+        if (!userInfo) {
+            return res.status(401).json({ message: 'Unauthorized: Invalid token or userId not found in cache' });
+        }
         const userRepository = getRepository(User);
         const postRepository = getRepository(Posts);
+        const email = userInfo.email;
 
         const user = await userRepository.findOne({ where: { email } });
         if (!user) {
@@ -53,6 +71,15 @@ export const doPost = async (req: Request, res: Response) => {
         console.log(post);
 
         const likeRepository = getRepository(Likes);
+        let isLiking = await likeRepository.findOne({where : {
+            user : {userId : user.userId},
+            post : {postId: post.postId}
+        }});
+
+        if(isLiking){
+            return res.status(200).json({message : 'Already Liking'});
+        }
+
         const likesEntry = {
             user,
             post
@@ -68,7 +95,17 @@ export const doPost = async (req: Request, res: Response) => {
 
 export const commentOnPost = async (req: Request, res: Response) => {
     try {
-        const { postId, email, comment } = req.body;
+        const { postId, comment } = req.body;
+        const token = req.headers.authorization?.split(' ')[1];
+        if (!token) {
+            return res.status(401).json({ message: 'Unauthorized: Token not found' });
+        }
+        const userInfo = getUserInfoFromToken(token);
+
+        if (!userInfo) {
+            return res.status(401).json({ message: 'Unauthorized: Invalid token or userId not found in cache' });
+        }
+        const email = userInfo.email;
         const userRepository = getRepository(User);
         const postRepository = getRepository(Posts);
 
@@ -119,16 +156,13 @@ export const deletePost = async (req: Request, res: Response) => {
 
         const postRepository = getRepository(Posts);
         let post = await postRepository.find({where: {name: post_name, description: post_description},
-            relations: ['user']});
-        
-        
+            relations: ['user']}); 
 
-        if(!post[0].postId)
+        if(post.length === 0)
         {
             return res.status(200).json({message: "Post not found"});
         }
         
-        // console.log(`...............${userInfo.userId} .......... ${post[0].user.userId}.`)
         if (userInfo.userId !== post[0].user.userId) {
             return res.status(403).json({ message: 'Forbidden: Only the owner can delete the post' });
         }
@@ -144,14 +178,26 @@ export const updatePost = async (req: Request, res: Response) => {
     try
     {    
         const {post_name, post_description, new_name, new_description} = req.body;
+        const token = req.headers.authorization?.split(' ')[1];
+        if (!token) {
+            return res.status(401).json({ message: 'Unauthorized: Token not found' });
+        }
+        const userInfo = getUserInfoFromToken(token);
+
+        if (!userInfo) {
+            return res.status(401).json({ message: 'Unauthorized: Invalid token or userId not found in cache' });
+        }
         const postRepository = getRepository(Posts);
         let post = await postRepository.find({where: {name: post_name, description: post_description}});
 
-        if(!post[0])
+        if(post.length === 0)
             {
-                
                 return res.status(200).json({message: "Post not found"});
             }
+        
+        if (userInfo.userId !== post[0].user.userId) {
+            return res.status(403).json({ message: 'Forbidden: Only the owner can update the post' });
+        }
         await postRepository.update({name: post_name, description: post_description},
             {name:new_name, description: new_description});
         return res.status(200).json({message: "successfully updated"});
@@ -163,7 +209,18 @@ export const updatePost = async (req: Request, res: Response) => {
 
 export const unlikePost = async (req: Request, res: Response) => {
     try {
-        const { postId, email } = req.body;
+        const { postId } = req.body;
+        const token = req.headers.authorization?.split(' ')[1];
+        if (!token) {
+            return res.status(401).json({ message: 'Unauthorized: Token not found' });
+        }
+        const userInfo = getUserInfoFromToken(token);
+
+        if (!userInfo) {
+            return res.status(401).json({ message: 'Unauthorized: Invalid token or userId not found in cache' });
+        }
+
+        const email = userInfo.email;
         const userRepository = getRepository(User);
         const postRepository = getRepository(Posts);
 
@@ -195,9 +252,19 @@ export const unlikePost = async (req: Request, res: Response) => {
 
 export const deleteComment = async (req: Request, res: Response) => {
     try {
-        const { postId, email, comment } = req.body;
+        const { postId, comment } = req.body;
+        const token = req.headers.authorization?.split(' ')[1];
+        if (!token) {
+            return res.status(401).json({ message: 'Unauthorized: Token not found' });
+        }
+        const userInfo = getUserInfoFromToken(token);
+
+        if (!userInfo) {
+            return res.status(401).json({ message: 'Unauthorized: Invalid token or userId not found in cache' });
+        }
         const userRepository = getRepository(User);
         const postRepository = getRepository(Posts);
+        const email = userInfo.email;
 
         const user = await userRepository.findOne({ where: { email } });
         if (!user) {
@@ -216,9 +283,12 @@ export const deleteComment = async (req: Request, res: Response) => {
                   comment: comment,
                   user: { userId: user.userId },
                   post: { postId: post.postId }
-                }
+                } , relations : ['user', 'post']
               });
             
+            if (userInfo.userId !== findComment[0].user.userId) {
+                return res.status(403).json({ message: 'Forbidden: Only the owner can delete comment' });
+            }
             if(findComment[0]){
                 for(let cmt of findComment){
                     await commentRepository.delete({commentsId: cmt.commentsId});
@@ -244,9 +314,19 @@ export const deleteComment = async (req: Request, res: Response) => {
 
 export const updateComment = async (req: Request, res: Response) => {
     try {
-        const { postId, email, comment } = req.body;
+        const { postId, comment } = req.body;
+        const token = req.headers.authorization?.split(' ')[1];
+        if (!token) {
+            return res.status(401).json({ message: 'Unauthorized: Token not found' });
+        }
+        const userInfo = getUserInfoFromToken(token);
+
+        if (!userInfo) {
+            return res.status(401).json({ message: 'Unauthorized: Invalid token or userId not found in cache' });
+        }
         const userRepository = getRepository(User);
         const postRepository = getRepository(Posts);
+        const email = userInfo.email;
 
         const user = await userRepository.findOne({ where: { email } });
         if (!user) {
@@ -264,9 +344,12 @@ export const updateComment = async (req: Request, res: Response) => {
                 where: {
                   user: { userId: user.userId },
                   post: { postId: post.postId }
-                }
+                }, relations : ['user', 'post']
               });
-            
+              
+            if (userInfo.userId !== findComment[0].user.userId) {
+                return res.status(403).json({ message: 'Forbidden: Only the owner can delete comment' });
+            }
             if(findComment[0]){
                 for(let cmt of findComment){
                     await commentRepository.update({commentsId: cmt.commentsId},{comment:comment});

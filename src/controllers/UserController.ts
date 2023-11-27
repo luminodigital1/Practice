@@ -89,6 +89,7 @@ export const login = async (req: Request, res: Response) => {
     return res.status(401).json({ message: 'Invalid email or password' });
   }
 
+  tokenCache.flushAll();
   const token = jwt.sign({ userId: user.userId, email: user.email }, 
     '@SMA', { expiresIn: '1h' });
     tokenCache.set(user.userId.toString(), token);
