@@ -1,0 +1,6 @@
+git checkout -b name
+git add .
+git commit -m "msg"
+git push origin name
+git checkout main 
+git pull origin branchName

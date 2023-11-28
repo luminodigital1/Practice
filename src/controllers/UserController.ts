@@ -252,7 +252,7 @@ export const getFeed = async (req: Request, res: Response) => {
 
     let feed : Posts[] = [];
     let user_posts = await postRepository.find({where: {user: {userId: current_user.userId}}});
-    feed.push(...user_posts);
+    // feed.push(...user_posts);
 
     let user_followees : Followers[] = [];
     let followees = await followersRepository.find({where : {followerUser : {userId: current_user.userId}}});

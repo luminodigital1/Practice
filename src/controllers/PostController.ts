@@ -1,42 +1,70 @@
 import { Request, Response } from 'express';
 import { getRepository } from 'typeorm';
+import multer from 'multer';
 import { User } from '../entities/User';
 import { Posts } from '../entities/Post';
 import { Likes } from '../entities/Likes';
 import { Comments } from '../entities/Comments';
 import { getUserInfoFromToken } from './VerifyToken';
 
-export const doPost = async (req: Request, res: Response) => {
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+      cb(null, 'uploads/'); // Specify the destination folder for uploads
+    },
+    filename: function (req, file, cb) {
+      cb(null, Date.now() + '-' + file.originalname); // Use a unique filename for each uploaded file
+    }
+  });
+  
+  const upload = multer({ storage: storage });
+
+  export const doPost = async (req: Request, res: Response) => {
     try {
+      const token = req.headers.authorization?.split(' ')[1];
+  
+      if (!token) {
+        return res.status(401).json({ message: 'Unauthorized: Token not found' });
+      }
+  
+      const userInfo = getUserInfoFromToken(token);
+  
+      if (!userInfo) {
+        return res
+          .status(401)
+          .json({ message: 'Unauthorized: Invalid token or userId not found in cache' });
+      }
+  
+      const email = userInfo.email;
+      const userRepository = getRepository(User);
+      const postRepository = getRepository(Posts);
+      const user = await userRepository.findOne({ where: { email } });
+  
+      if (!user) {
+        return res.status(401).json({ message: 'User does not exist' });
+      }
+  
+      // Use the upload middleware to handle file uploads
+      upload.single('file')(req, res, async (err) => {
+        if (err) {
+          console.error(err);
+          return res.status(500).json({ error: 'File upload failed' });
+        }
+  
         const { name, description } = req.body;
-        const token = req.headers.authorization?.split(' ')[1];
-        if (!token) {
-            return res.status(401).json({ message: 'Unauthorized: Token not found' });
-        }
-        const userInfo = getUserInfoFromToken(token);
-
-        if (!userInfo) {
-            return res.status(401).json({ message: 'Unauthorized: Invalid token or userId not found in cache' });
-        }
-
-        const email = userInfo.email;
-        const userRepository = getRepository(User);
-        const postRepository = getRepository(Posts);
-        const user = await userRepository.findOne({ where: { email } });
-
-        if (!user) {
-            return res.status(401).json({ message: 'User do not exist' });
-        }
+        const filePath = req.file?.path;
+  
+        // Create a new post with the file path
         const newPost = postRepository.create({
-            name,
-            description,
-            user
-          });
-      
+          name,
+          description,
+          user,
+          filePath: filePath || null, // Set the filePath or null if it's not available
+        });
+  
         await postRepository.save(newPost);
-        res.status(501).json({message: 'New Post Created' });
-    } 
-    catch (error) {
+        res.status(201).json({ message: 'New Post Created' });
+      });
+    } catch (error) {
       console.error(error);
       res.status(500).json({ error: 'New Post Denied' });
     }
