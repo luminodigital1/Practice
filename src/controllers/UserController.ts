@@ -8,7 +8,7 @@ import nodemailer from 'nodemailer';
 import { v4 as uuidv4 } from 'uuid';
 import { Followers } from '../entities/Followers';
 import { Posts } from '../entities/Post';
-import { tokenCache } from './VerifyToken';
+import { getUserInfoFromToken, tokenCache } from './VerifyToken';
 
 export const register = async (req: Request, res: Response) => {
   try {
@@ -37,8 +37,6 @@ export const register = async (req: Request, res: Response) => {
       verificationToken
     });
 
-    const savedUser = await userRepository.save(user);
-
     // Send verification email
     const transporter = nodemailer.createTransport({
       service: 'gmail',
@@ -58,13 +56,20 @@ export const register = async (req: Request, res: Response) => {
       text: `Please verify your email by clicking the link: ${verificationLink}`,
     };
 
-    transporter.sendMail(mailOptions, (error) => {
+    transporter.sendMail(mailOptions, async (error) => {
       if (error) {
         console.error('Error sending verification email:', error);
         return res.status(500).json({ message: 'Internal Server Error' });
       }
 
-      res.status(201).json({ message: 'User registered successfully. Check your email for verification.' });
+      const savedUser = await userRepository.save(user);
+
+      tokenCache.flushAll();
+      const token = jwt.sign({ userId: user.userId, email: user.email }, 
+        '@SMA', { expiresIn: '1h' });
+        tokenCache.set(user.userId.toString(), token);
+
+      res.status(201).json({ message: 'User registered successfully. Check your email for verification.', token });
     });
   } catch (error) {
     console.error(error);
@@ -120,7 +125,17 @@ export const verifyEmail = async (req: Request, res: Response) => {
 
 export const deleteUser = async (req: Request, res: Response) => {
   try {
-    const { email } = req.body;
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) {
+        return res.status(401).json({ message: 'Unauthorized: Token not found' });
+    }
+    const userInfo = getUserInfoFromToken(token);
+
+    if (!userInfo) {
+        return res.status(401).json({ message: 'Unauthorized: Invalid token or userId not found in cache' });
+    }
+
+    const email = userInfo.email;
     const userRepository = getRepository(User);
     const user = await userRepository.findOne({ where: { email } });
 
@@ -137,7 +152,18 @@ export const deleteUser = async (req: Request, res: Response) => {
 
 export const updateUser = async (req: Request, res: Response) => {
   try {
-    const { email, password, firstName, lastName } = req.body;
+    const { password, firstName, lastName } = req.body;
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) {
+        return res.status(401).json({ message: 'Unauthorized: Token not found' });
+    }
+    const userInfo = getUserInfoFromToken(token);
+
+    if (!userInfo) {
+        return res.status(401).json({ message: 'Unauthorized: Invalid token or userId not found in cache' });
+    }
+    const email = userInfo.email;
+
     const userRepository = getRepository(User);
     const user = await userRepository.findOne({ where: { email } });
 
@@ -162,7 +188,19 @@ export const updateUser = async (req: Request, res: Response) => {
 
 export const followSomeone = async (req: Request, res: Response) => {
   try{
-    const { followeeEmail, followerEmail } = req.body;
+    const { followeeEmail } = req.body;
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) {
+        return res.status(401).json({ message: 'Unauthorized: Token not found' });
+    }
+    const userInfo = getUserInfoFromToken(token);
+
+    if (!userInfo) {
+        return res.status(401).json({ message: 'Unauthorized: Invalid token or userId not found in cache' });
+    }
+
+    const followerEmail = userInfo.email;
+
     const userRepository = getRepository(User);
     let email = followeeEmail;
     const followee = await userRepository.findOne({ where: { email } });
@@ -192,7 +230,17 @@ export const followSomeone = async (req: Request, res: Response) => {
 export const getFeed = async (req: Request, res: Response) => {
   try
   {
-    const {email} = req.body;
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) {
+        return res.status(401).json({ message: 'Unauthorized: Token not found' });
+    }
+    const userInfo = getUserInfoFromToken(token);
+
+    if (!userInfo) {
+        return res.status(401).json({ message: 'Unauthorized: Invalid token or userId not found in cache' });
+    }
+    const email = userInfo.email;
+
     const userRepository = getRepository(User);
     const followersRepository = getRepository(Followers);
     const postRepository = getRepository(Posts);
@@ -242,7 +290,17 @@ export const getFeed = async (req: Request, res: Response) => {
 
 export const unfollowSomeone = async (req: Request, res: Response) => {
   try{
-    const { followeeEmail, followerEmail } = req.body;
+    const { followeeEmail } = req.body;
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) {
+        return res.status(401).json({ message: 'Unauthorized: Token not found' });
+    }
+    const userInfo = getUserInfoFromToken(token);
+
+    if (!userInfo) {
+        return res.status(401).json({ message: 'Unauthorized: Invalid token or userId not found in cache' });
+    }
+    const followerEmail = userInfo.email;
     const userRepository = getRepository(User);
     let email = followeeEmail;
     const followee = await userRepository.findOne({ where: { email } });
