@@ -365,3 +365,36 @@ export const updateComment = async (req: Request, res: Response) => {
         res.status(500).json({ error: 'Comment Denied to delete' });
     }
 };
+
+export const searchPost = async (req: Request, res: Response) =>{
+    try{
+      const {keyword} = req.body;
+      const token = req.headers.authorization?.split(' ')[1];
+      if (!token) {
+          return res.status(401).json({ message: 'Unauthorized: Token not found' });
+      }
+      const userInfo = getUserInfoFromToken(token);
+  
+      if (!userInfo) {
+          return res.status(401).json({ message: 'Unauthorized: Invalid token or userId not found in cache' });
+      }
+      
+      if(!keyword){
+        return res.status(500).json({messade: 'Please enter something to search'});
+      }
+  
+      const postRepository = getRepository(Posts);
+  
+      const searchResult:  Pick<Posts, 'name' | 'description'>[] = await postRepository.createQueryBuilder('post')
+      .select(['name', 'description', 'user.email'])
+      .leftJoin('post.user','user')
+      .where('post.name LIKE :keyword', { keyword: `%${keyword}%` })
+      .orWhere('post.description LIKE :keyword', { keyword: `%${keyword}%` })
+      .getRawMany();    
+  
+      res.status(201).json({searchResult});
+    }
+    catch(error){
+      res.status(200).json({error: 'unable to search post'});
+    }
+  }

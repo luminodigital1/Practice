@@ -350,5 +350,39 @@ export const logout = async (req: Request, res: Response) =>{
     res.status(200).json({error: 'unable to log out'});
   }
 }
+
+export const searchUser = async (req: Request, res: Response) =>{
+  try{
+    const {keyword} = req.body;
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) {
+        return res.status(401).json({ message: 'Unauthorized: Token not found' });
+    }
+    const userInfo = getUserInfoFromToken(token);
+
+    if (!userInfo) {
+        return res.status(401).json({ message: 'Unauthorized: Invalid token or userId not found in cache' });
+    }
+    
+    if(!keyword){
+      return res.status(500).json({messade: 'Please enter something to search'});
+    }
+
+    const userRepository = getRepository(User);
+
+    const searchResult:  Pick<User, 'email' | 'firstName' | 'lastName'>[] = await userRepository.createQueryBuilder('user')
+    .select(['user.email', 'user.firstName', 'user.lastName'])
+    .where('user.email LIKE :keyword', { keyword: `%${keyword}%` })
+    .orWhere('user.firstName LIKE :keyword', { keyword: `%${keyword}%` })
+    .orWhere('user.lastName LIKE :keyword', { keyword: `%${keyword}%` })
+    .getRawMany();    
+
+    res.status(201).json({searchResult});
+  }
+  catch(error){
+    res.status(200).json({error: 'unable to search user'});
+  }
+}
+
 export { tokenCache };
 
