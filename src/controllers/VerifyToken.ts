@@ -22,19 +22,15 @@ export function verifyToken(token: string | undefined) {
 
   export function getUserInfoFromToken(token: string): { userId: number; email: string } | null {
     try {
-      // Replace '@SMA' with your actual secret key used during login
       const decoded = jwt.verify(token, '@SMA') as { userId: number; email: string };
   
-      // Fetch userId from cache
       const userId = tokenCache.get(decoded.userId.toString());
   
-      // Check if userId is found in the cache
       if (!userId) {
         console.error('UserId not found in cache');
         return null;
       }
   
-      // Return userId and email
       return { userId: parseInt(decoded.userId.toString()), email: decoded.email };
     } catch (error) {
       console.error('Token verification failed:', error);

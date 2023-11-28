@@ -29,18 +29,18 @@ export class User {
   @Column()
   verificationToken: string;
 
-  @OneToMany(() => Posts, posts => posts.postId)
+  @OneToMany(() => Posts, posts => posts.postId, {cascade: true})
   posts!: Posts[]
 
-  @OneToMany(() => Likes, likes => likes.user)
+  @OneToMany(() => Likes, likes => likes.user, {cascade: true})
   likes!: Likes[];
 
   // One user can have multiple followers
-  @OneToMany(() => Followers, follower => follower)
+  @OneToMany(() => Followers, follower => follower, {cascade: true} )
   follower!: Followers[];
 
   // One user can be followed by multiple users
-  @OneToMany(() => Followers, follower => follower.followeeUser)
+  @OneToMany(() => Followers, follower => follower.followeeUser, {cascade: true})
   followees!: Followers[];
 
   constructor() {

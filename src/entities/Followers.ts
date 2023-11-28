@@ -9,42 +9,12 @@ export class Followers {
     followerId!: number;
 
   // Many-to-one relationship with the User entity (follower)
-  @ManyToOne(() => User, user => user.follower)
+  @ManyToOne(() => User, user => user.follower, {onDelete: "CASCADE"})
     @JoinColumn({ name: 'followerUserId' })
     followerUser!: User;
 
   // Many-to-one relationship with the User entity (followee)
-  @ManyToOne(() => User, user => user.followees)
+  @ManyToOne(() => User, user => user.followees, {onDelete: "CASCADE"})
     @JoinColumn({ name: 'followeeUserId' })
     followeeUser!: User;
 }
-
-
-// import { Entity, PrimaryGeneratedColumn, Column, ManyToMany, JoinTable } from 'typeorm';
-// import { User } from './User';
- 
-// @Entity()
-// export class Followers {
-//   @PrimaryGeneratedColumn()
-//     id!: number;
- 
-//   @Column()
-//     userId!: number;
- 
-//   @Column()
-//     followerId!: number;
- 
-//   @ManyToMany(() => User, user => user.follower)
-//     @JoinTable({
-//         name: 'user_followers',
-//         joinColumn: {
-//             name: 'userId',
-//             referencedColumnName: 'id',
-//         },
-//         inverseJoinColumn: {
-//             name: 'followerId',
-//             referencedColumnName: 'id',
-//         },
-//     })
-//     followers!: User[];
-// }

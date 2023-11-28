@@ -330,5 +330,25 @@ export const unfollowSomeone = async (req: Request, res: Response) => {
     return res.status(300).json({message : 'Unable to unfollow'});
   }
 }
+
+export const logout = async (req: Request, res: Response) =>{
+  try{
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) {
+        return res.status(401).json({ message: 'Unauthorized: Token not found' });
+    }
+    const userInfo = getUserInfoFromToken(token);
+
+    if (!userInfo) {
+        return res.status(401).json({ message: 'Unauthorized: Invalid token or userId not found in cache' });
+    }
+    
+    await tokenCache.flushAll();
+    res.status(201).json({message: 'Successfully logout'});
+  }
+  catch(error){
+    res.status(200).json({error: 'unable to log out'});
+  }
+}
 export { tokenCache };
 

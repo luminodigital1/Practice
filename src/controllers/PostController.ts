@@ -4,7 +4,7 @@ import { User } from '../entities/User';
 import { Posts } from '../entities/Post';
 import { Likes } from '../entities/Likes';
 import { Comments } from '../entities/Comments';
-import { getUserInfoFromToken, verifyToken } from './VerifyToken';
+import { getUserInfoFromToken } from './VerifyToken';
 
 export const doPost = async (req: Request, res: Response) => {
     try {

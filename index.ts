@@ -1,6 +1,6 @@
 const express = require("express");
 import { createConnection } from 'typeorm';
-import { register, login, verifyEmail, deleteUser, updateUser, followSomeone, getFeed, unfollowSomeone } from './src/controllers/UserController';
+import { register, login, verifyEmail, deleteUser, updateUser, followSomeone, getFeed, unfollowSomeone, logout } from './src/controllers/UserController';
 import { commentOnPost, deleteComment, deletePost, doPost, likePost, unlikePost, updateComment, updatePost } from './src/controllers/PostController';
 
 const app = express();
@@ -22,6 +22,7 @@ app.listen(port,()=>{
 
 app.post('/register', register);
 app.get('/login', login);
+app.get('/logout', logout);
 app.get('/verify/:token', verifyEmail);
 app.post('/deleteUser',deleteUser);
 app.post('/updateUser',updateUser);

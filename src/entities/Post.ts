@@ -17,11 +17,11 @@ export class Posts {
   description: string;
 
   // Define the many-to-one relationship with the User entity
-  @ManyToOne(() => User, user => user.email)
+  @ManyToOne(() => User, user => user.email, {onDelete: "CASCADE"})
     @JoinColumn({ name: 'PostByUser' }) // Specify the foreign key column name
     user!: User;
 
-  @OneToMany(() => Likes, likes => likes.post)
+  @OneToMany(() => Likes, likes => likes.post, {cascade: true})
     likes!: Likes[];
 
   constructor(){
