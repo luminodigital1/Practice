@@ -16,6 +16,9 @@ export class Posts {
   @Column()
   description: string;
 
+  @Column({type: 'varchar', nullable: true }) // This allows the column to be nullable, as not all posts need to have a file
+  filePath: string | null;
+
   // Define the many-to-one relationship with the User entity
   @ManyToOne(() => User, user => user.email, {onDelete: "CASCADE"})
     @JoinColumn({ name: 'PostByUser' }) // Specify the foreign key column name
@@ -28,6 +31,6 @@ export class Posts {
     this.postId = 0;
     this.name = "";
     this.description = "";
-    // this.user = new User();
+    this.filePath = null;
   }
 }
